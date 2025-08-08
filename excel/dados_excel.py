@@ -1,4 +1,5 @@
 import pandas as pd
+from utils.Produtos import Produto
 from web.web_app import iniciar_driver
 
 class DadosExcel:
@@ -34,7 +35,22 @@ class DadosExcel:
             yield produto  # Retorna o dicionário com os dados da
 
 # Exemplo de uso
-caminho_arquivo = r"C:\Users\Pedro\Documents\BOT-PRODUTO\dist\ALUNORTE AT.xlsx"  # Substitua pelo caminho correto
+caminho_arquivo = r"C:\Users\Pedro\Documents\BOT-LINHA-CONTRATO\dist\LINHA CONTRATO AUTO.xlsx"  # Substitua pelo caminho correto
 dados = DadosExcel(caminho_arquivo)
 
-iniciar_driver(dados)
+lista_produtos = []
+
+for idx, dado in enumerate(dados):
+    lista_produtos.insert(idx, dado)
+
+instan_prod = Produto(r"C:\Users\Pedro\Documents\BOT-LINHA-CONTRATO\path\index_prod.json")
+
+idx_prod = instan_prod.obter_valor("ultimo_idx")
+
+if idx_prod == None:
+    print("\nNenhum registro encontrado.")
+    instan_prod.atualizar_valor("ultimo_idx", 0)
+else:
+    print(f"\nRegistro irá retomar na linha {idx_prod + 1} do contrato.")
+
+iniciar_driver(lista_produtos)

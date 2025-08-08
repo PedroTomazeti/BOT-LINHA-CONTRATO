@@ -45,7 +45,7 @@ def shadow_button(driver, shadow_host_selector, botao_selector):
     print("Clicando no botão...")
     driver.execute_script("arguments[0].click();", botao)
 
-    sleep(3)
+    sleep(1.5)
 
 def button(driver, shadow_button):
     """Clique em um botão dentro do Shadow DOM do elemento."""
@@ -63,18 +63,18 @@ def shadow_input(driver, element, text):
     shadow = expand_shadow_element(driver, input)
     print("Shadow DOM expandido.")
     inserir = wait_for_click(shadow, By.CSS_SELECTOR, 'input')
-    sleep(1.5)
+    sleep(1)
 
     driver.execute_script("arguments[0].focus();", inserir)
     inserir.clear()
-    sleep(1.5)
+    sleep(1)
     inserir.send_keys(Keys.CONTROL, 'a')
     sleep(0.3)
     inserir.send_keys(Keys.BACKSPACE)
     ActionChains(driver).move_to_element(inserir).perform()
     input.send_keys(text)
 
-    sleep(1)
+    sleep(0.3)
     
     print("\nValor inserido.")
 
@@ -641,14 +641,14 @@ def shadow_input_quant(driver, element, text):
     shadow = expand_shadow_element(driver, input)
     print("Shadow DOM expandido.")
     inserir = wait_for_click(shadow, By.CSS_SELECTOR, 'input')
-    sleep(1.5)
+    sleep(1)
 
     driver.execute_script("arguments[0].focus();", inserir)
 
     ActionChains(driver).move_to_element(inserir).perform()
     input.send_keys(text)
 
-    sleep(1)
+    sleep(0.5)
     
     print("\nValor inserido.")
 

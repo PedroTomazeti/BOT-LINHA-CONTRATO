@@ -18,6 +18,7 @@ from selenium.common.exceptions import (
     ElementNotInteractableException,
     JavascriptException,
 )
+from utils.Produtos import Produto
 from processos.process_web import (
     expand_shadow_element, shadow_button, shadow_input, wait_for_element, click_element,wait_for_click, normal_input,
     button, acessar_valor, tentar_alterar_valor, confirma_valor, processar_arquivo, shadow_input_quant, confirma_valor_quant
@@ -84,30 +85,50 @@ def fechar_site(driver):
 
 def iniciar_driver(produtos):
     """
-    Função para iniciar e abrir o site.
+    Inicia o WebDriver, acessa o site e executa o processo principal.
+    Tenta novamente até 10 vezes em caso de erro.
     """
-    # Configura o WebDriver
-    driver = configurar_driver()
+    max_tentativas = 10
+    tentativa = 1
 
-    # URL do site
-    url = f"https://kairoscomercio136240.protheus.cloudtotvs.com.br:4010/webapp/"
-    
-    try:
-        # Abre o site
-        site_aberto = abrir_site(driver, url)
-        if not site_aberto:
-            raise Exception("\nFalha ao abrir o site.")
+    while tentativa <= max_tentativas:
+        print(f"\n🔄 Tentativa {tentativa}/{max_tentativas} de iniciar o processo...")
+        driver = None
 
-        # Continue com o fluxo principal
-        print("\nSite acessado com sucesso, prosseguindo com a lógica...")
-        main_process(driver, url, produtos)
-    except Exception as e:
-        print(f"\nOcorreu um erro: {e}")
-    
-    finally:
-        # Finaliza o WebDriver
-        driver.quit()
-        print("\nDriver finalizado.")
+        try:
+            driver = configurar_driver()
+            url = "https://kairoscomercio136240.protheus.cloudtotvs.com.br:4010/webapp/"
+
+            site_aberto = abrir_site(driver, url)
+            if not site_aberto:
+                raise Exception("Falha ao abrir o site.")
+
+            print("✅ Site acessado com sucesso, prosseguindo com a lógica...")
+            sucesso = main_process(driver, url, produtos)
+            if sucesso:
+                print("✅ Processamento concluído com sucesso.")
+                if driver:
+                    try:
+                        driver.quit()
+                        print("🛑 Driver finalizado.")
+                    except Exception as e:
+                        print(f"⚠️ Erro ao finalizar driver: {e}")
+
+                return  # Sai do loop com sucesso
+
+            else:
+                print(f"❌ Erro na tentativa {tentativa}: {e}")
+                tentativa += 1
+                time.sleep(3)
+
+        except Exception as e:
+            print(f"❌ Erro na tentativa {tentativa}: {e}")
+            tentativa += 1
+            time.sleep(3)  # Pequena pausa antes de tentar novamente
+            
+
+    print("\n🚫 Todas as tentativas falharam. Processo abortado.")
+    return None
 
 def monitor_connection_thread(driver, url, stop_monitoring):
     """
@@ -396,99 +417,105 @@ def altera_tipo(driver):
 
     time.sleep(2)
 
-def inserir_produto(driver, produtos):
-    for produto in produtos:
+def inserir_produto(driver, produtos, it_prod):
+    idx = it_prod.obter_valor("ultimo_idx")
+    list_tam = len(produtos)
+
+    restantes = list_tam - idx
+
+    for i in range(restantes):
+        idx = it_prod.obter_valor("ultimo_idx")
         wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"]')
         
         print("\nIncluindo Grupo...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]', produto['GRUPO'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]', produtos[idx]['GRUPO'])
         print("Incluído.")
         
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['GRUPO']).strip()
+        valor_desejado = str(produtos[idx]['GRUPO']).strip()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]')
         
         print("\nIncluindo Descrição...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]', produto['DESCRICAO'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]', produtos[idx]['DESCRICAO'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['DESCRICAO']).strip()
+        valor_desejado = str(produtos[idx]['DESCRICAO']).strip().upper()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]')
 
         print("\nIncluindo Descrição Específica...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]', produto['DESCRICAO'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]', produtos[idx]['DESCRICAO'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['DESCRICAO']).strip()
+        valor_desejado = str(produtos[idx]['DESCRICAO']).strip().upper()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]')
         
         print("\nIncluindo Tipo...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]', produto['TIPO'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]', produtos[idx]['TIPO'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['TIPO']).strip()
+        valor_desejado = str(produtos[idx]['TIPO']).strip().upper()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]')
 
         print("\nIncluindo Unidade...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]', produto['UNIDADE'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]', produtos[idx]['UNIDADE'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['UNIDADE']).strip()
+        valor_desejado = str(produtos[idx]['UNIDADE']).strip().upper()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]')
 
         print("\nIncluindo Armazem...")    
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]', produto['ARMAZEM'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]', produtos[idx]['ARMAZEM'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['ARMAZEM']).strip()
+        valor_desejado = str(produtos[idx]['ARMAZEM']).strip()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]')
 
         print("\nIncluindo NCM...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]', str(produto['NCM']) * 8)
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]', str(produtos[idx]['NCM']) * 8)
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['NCM']).replace(".", "").strip()
+        valor_desejado = str(produtos[idx]['NCM']).replace(".", "").strip()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]')
 
         print("\nIncluindo Preço de venda...")
-        print(f"Preço: R$ {produto['PRECO VENDA']}")
+        print(f"Preço: R$ {produtos[idx]['PRECO VENDA']}")
         
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6041"]')
-        shadow_input_quant(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6041"]', produto['PRECO VENDA'])
+        shadow_input_quant(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6041"]', produtos[idx]['PRECO VENDA'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel)
@@ -499,41 +526,41 @@ def inserir_produto(driver, produtos):
 
         print(f"Valor atual formatado: {valor_atual}")
 
-        confirma_valor_quant(driver, valor_atual_formatado, produto['PRECO VENDA'], wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6041"]')
+        confirma_valor_quant(driver, valor_atual_formatado, produtos[idx]['PRECO VENDA'], wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6041"]')
 
         print("\nIncluindo Código do fornecedor...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6046"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6046"]', produto['COD FOR'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6046"]', produtos[idx]['COD FOR'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['COD FOR']).strip()
+        valor_desejado = str(produtos[idx]['COD FOR']).strip()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6046"]')
 
         print("\nIncluindo Código do fornecedor CLI...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6063"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6063"]', produto['COD PRO CLI'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6063"]', produtos[idx]['COD PRO CLI'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['COD PRO CLI']).strip()
+        valor_desejado = str(produtos[idx]['COD PRO CLI']).strip()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6063"]')
 
         print("\nIncluindo Unidade de medida CLI...")
         wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6064"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6064"]', produto['UNIDADE.1'])
+        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6064"]', produtos[idx]['UNIDADE.1'])
         print("Incluído.")
 
         valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
         print(f"Valor atual do campo: {valor_atual}")
         
-        valor_desejado = str(produto['UNIDADE.1']).strip()
+        valor_desejado = str(produtos[idx]['UNIDADE.1']).strip()
 
         confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6064"]')
 
@@ -548,7 +575,8 @@ def inserir_produto(driver, produtos):
         wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP7509"] > wa-button[id="COMP7511"]')
         shadow_button(driver, 'wa-panel[id="COMP7509"] > wa-button[id="COMP7511"]', 'button')
         print("Confirmado.")
-
+        
+        it_prod.atualizar_valor("ultimo_idx", idx+1)
         time.sleep(5)
 
     print("\nFechando menu...")
@@ -595,18 +623,20 @@ def main_process(driver, url, produtos):
             'wa-dialog[id="COMP4500"] > wa-panel[id="COMP4503"] > wa-panel[id="COMP4504"] > wa-panel[id="COMP4520"] > wa-button[id="COMP4522"]', 
             'button')
 
+            instan_prod = Produto(r"C:\Users\Pedro\Documents\BOT-LINHA-CONTRATO\path\index_prod.json")
+
             definir_grupo(driver, produtos)
             
             # busca_produto(driver, produtos)
 
             apertar_incluir(driver)
-            time.sleep(15)
+            time.sleep(7)
 
-            inserir_produto(driver, produtos)
+            inserir_produto(driver, produtos, instan_prod)
 
             print("\nAlteração de produtos concluída.")
 
-            time.sleep(30)
+            time.sleep(15)
 
         else:
             print("Conexão não estabelecida. Verifique a lógica de monitoramento.")
@@ -614,15 +644,16 @@ def main_process(driver, url, produtos):
     except (NoSuchElementException, ElementNotInteractableException, TimeoutException, JavascriptException, WebDriverException) as e:
         msg = f"Erro Selenium: {e}"
         print(msg)
-        print(traceback.format_exc())
+        print(traceback.format_exc())  
 
+        return False
     except Exception as e:
         msg = f"Erro no processo principal: {e}"
         print(msg)
         print(traceback.format_exc())
 
+        return False
     finally:
         stop_monitoring.set()
         monitor_thread.join()
         print("Finalizando driver e monitoramento.")
-        fechar_site(driver)
