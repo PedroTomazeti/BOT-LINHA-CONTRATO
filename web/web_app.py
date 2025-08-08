@@ -623,7 +623,7 @@ def main_process(driver, url, produtos):
             'wa-dialog[id="COMP4500"] > wa-panel[id="COMP4503"] > wa-panel[id="COMP4504"] > wa-panel[id="COMP4520"] > wa-button[id="COMP4522"]', 
             'button')
 
-            instan_prod = Produto(r"C:\Users\Pedro\Documents\BOT-LINHA-CONTRATO\path\index_prod.json")
+            instan_prod = Produto(r"dist\LINHA CONTRATO AUTO.xlsx")
 
             definir_grupo(driver, produtos)
             

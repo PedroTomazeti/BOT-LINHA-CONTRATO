@@ -35,7 +35,7 @@ class DadosExcel:
             yield produto  # Retorna o dicionário com os dados da
 
 # Exemplo de uso
-caminho_arquivo = r"C:\Users\Pedro\Documents\BOT-LINHA-CONTRATO\dist\LINHA CONTRATO AUTO.xlsx"  # Substitua pelo caminho correto
+caminho_arquivo = r"dist\LINHA CONTRATO AUTO.xlsx"  # Substitua pelo caminho correto
 dados = DadosExcel(caminho_arquivo)
 
 lista_produtos = []
