@@ -43,7 +43,7 @@ lista_produtos = []
 for idx, dado in enumerate(dados):
     lista_produtos.insert(idx, dado)
 
-instan_prod = Produto(r"C:\Users\Pedro\Documents\BOT-LINHA-CONTRATO\path\index_prod.json")
+instan_prod = Produto(r"dist\LINHA CONTRATO AUTO.xlsx")
 
 idx_prod = instan_prod.obter_valor("ultimo_idx")
 
