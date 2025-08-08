@@ -35,7 +35,7 @@ class DadosExcel:
             yield produto  # Retorna o dicionário com os dados da
 
 # Exemplo de uso
-caminho_arquivo = "dist/LINHA CONTRATO AUTO.xlsx"  # Substitua pelo caminho correto
+caminho_arquivo = "dist\LINHA CONTRATO AUTO.xlsx"  # Substitua pelo caminho correto
 dados = DadosExcel(caminho_arquivo)
 
 lista_produtos = []
@@ -43,7 +43,7 @@ lista_produtos = []
 for idx, dado in enumerate(dados):
     lista_produtos.insert(idx, dado)
 
-instan_prod = Produto("path/index_prod.json")
+instan_prod = Produto("register\index_prod.json")
 
 idx_prod = instan_prod.obter_valor("ultimo_idx")
 
