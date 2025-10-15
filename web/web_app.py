@@ -177,9 +177,36 @@ def process_shadow_dom(driver):
     """
     Processa interações no Shadow DOM para clicar no botão OK e localizar outros elementos.
     """
-    print("Aguardando wa-dialog...")
+    print("Selecionando tipo de ambiente no servidor...")
+
+    # Localiza o combobox dentro do Shadow DOM
+    wa_combo_box = wait_for_element(
+        driver, 
+        By.CSS_SELECTOR, 
+        'wa-dialog.startParameters > fieldset[id="fieldsetEnv"] > wa-combobox[id="selectEnv"]'
+    )
+    shadow_combo_box = expand_shadow_element(driver, wa_combo_box)
+    select_element = shadow_combo_box.find_element(By.CSS_SELECTOR, "select")
+
+    # Opção desejada
+    desired_value = "czls4f_prod"
+    desired_option = select_element.find_element(By.CSS_SELECTOR, f"option[value='{desired_value}']")
+
+    # Opção atual selecionada
+    current_option = select_element.find_element(By.CSS_SELECTOR, "option:checked")
+    current_value = current_option.get_attribute("value")
+
+    if current_value == desired_value:
+        print(f"\nAmbiente '{desired_value}' já está selecionado, não será alterado.")
+    else:
+        desired_option.click()
+        print(f"\nAmbiente '{desired_value}' selecionado.")
+
+    time.sleep(1)
+
+    print("\nAguardando wa-dialog...")
     shadow_button(driver, "wa-dialog.startParameters", "wa-button[title='Botão confirmar']")
-    
+
     time.sleep(3)
 
 def locate_and_access_iframe(driver):
