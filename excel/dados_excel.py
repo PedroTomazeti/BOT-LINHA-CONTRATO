@@ -26,7 +26,7 @@ class DadosExcel:
                 'TIPO': row['TIPO'],
                 'UNIDADE': row['UN'],
                 'ARMAZEM': row['ARMAZEM'],
-                'NCM': str(row['NCM']) * 8,
+                'NCM': str(row['NCM']),
                 'PRECO VENDA': preco_venda,  # Preço já formatado
                 'COD FOR': row['COD FOR'],
                 'COD PRO CLI': row['COD PRO CLI'],

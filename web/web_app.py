@@ -126,7 +126,6 @@ def iniciar_driver(produtos):
             tentativa += 1
             time.sleep(3)  # Pequena pausa antes de tentar novamente
             
-
     print("\n🚫 Todas as tentativas falharam. Processo abortado.")
     return None
 
@@ -149,7 +148,6 @@ def monitor_connection(driver, url, stop_monitoring, max_attempts=5, check_inter
     while not stop_monitoring.is_set() and attempt < max_attempts and not connection_successful:
         try:
             print(f"[Monitor] Tentativa {attempt + 1} de {max_attempts} para acessar {url}...")
-            driver.get(url)
 
             # Aguarda a página carregar um elemento essencial
             wait_for_element(driver, By.CSS_SELECTOR, "wa-dialog.startParameters")
@@ -236,14 +234,18 @@ def abrir_menu_unidade(driver):
     container_amb = wait_for_element(driver, By.CSS_SELECTOR, amb_selector)
     WebDriverWait(driver, 20).until(EC.visibility_of(container_amb))
     amb_field = wait_for_click(container_amb, By.CSS_SELECTOR, 'input')
-
+    
     # Garantir que o elemento esteja visível
     driver.execute_script("arguments[0].scrollIntoView(true);", amb_field)
     normal_input(driver, amb_selector, 'input', '2', "Ambiente")
-
+    
+    time.sleep(0.5)
+    
     amb_field.send_keys(Keys.TAB)
 
     print("Acesso Concluído.")
+
+    time.sleep(0.3)
     # Procurando e clicando no botão
     container_but = wait_for_element(driver, By.CSS_SELECTOR, unidade_selector)
 
@@ -308,7 +310,16 @@ def apertar_incluir(driver):
     Função para apertar o botão de incluir em Pedidos de Venda
     """
     print("Buscando wa-panel da rotina de Produtos...")
-    wait_for_element(driver, By.ID, 'COMP4586')
+    try:
+        wait_for_element(driver, By.ID, 'COMP4586')
+    except Exception as e:
+        print(f"ERRO NO IDENTIFICADOR 1: {e}")
+        try:
+            print("\nIniciando busca de novo ID.")
+            wait_for_element(driver, By.ID, 'COMP4591')
+        except Exception as e:
+            print(f"ERRO NO ÚLTIMO IDENTIFICADOR: {e}")
+
     print("Tela carregada com sucesso.")
     time.sleep(5)
 
@@ -316,11 +327,18 @@ def apertar_incluir(driver):
     for i in range(0,5):    
         try:
             print(f"Tentativa: {i+1}")
-            btn_incluir = wait_for_element(driver, By.ID, 'COMP4587')
-            print("Botão encontrado e expandindo shadow DOM...")
-            shadow_root_btn = expand_shadow_element(driver, btn_incluir)
-            button(driver, shadow_root_btn)
-            time.sleep(2)
+            try:
+                btn_incluir = wait_for_click(driver, By.ID, 'COMP4587')
+                print("Botão encontrado e expandindo shadow DOM...")
+                shadow_root_btn = expand_shadow_element(driver, btn_incluir)
+                button(driver, shadow_root_btn)
+                time.sleep(2)
+            except Exception as e:
+                btn_incluir = wait_for_click(driver, By.ID, 'COMP4592')
+                print("Botão encontrado e expandindo shadow DOM...")
+                shadow_root_btn = expand_shadow_element(driver, btn_incluir)
+                button(driver, shadow_root_btn)
+                time.sleep(2)
             
             if wait_for_element(driver, By.ID, 'COMP6000', timeout=30):
                 print("Botão clicado com sucesso.")
