@@ -22,7 +22,7 @@ from selenium.common.exceptions import (
 from utils.Produtos import Produto
 from processos.process_web import (
     expand_shadow_element, shadow_button, shadow_input, wait_for_element, click_element,wait_for_click, normal_input,
-    button, acessar_valor, tentar_alterar_valor, confirma_valor, processar_arquivo, shadow_input_quant, confirma_valor_quant
+    button, acessar_valor, tentar_alterar_valor, processar_arquivo, shadow_input_quant, confirma_valor_quant
 )
 
 # Variável global para rastrear o número de tentativas
@@ -504,21 +504,20 @@ def _salvar_e_confirmar_robusto(driver, max_tentativas=5):
     Tenta salvar e confirmar o produto de forma agressiva em um loop.
     Só para quando os painéis de salvar e de confirmar desaparecerem.
     """
+    print("Clicando no botão 'Salvar'...")
+    shadow_button(driver, 'wa-panel[id="COMP6550"] > wa-button[id="COMP6554"]', 'button')
+    
     for tentativa in range(1, max_tentativas + 1):
         print(f"\n--- Tentativa {tentativa}/{max_tentativas} para Salvar e Confirmar ---")
         try:
-            print("Clicando no botão 'Salvar'...")
-            shadow_button(driver, 'wa-panel[id="COMP6550"] > wa-button[id="COMP6554"]', 'button')
-
             print("Clicando no botão 'Confirmar' final...")
             wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP7509"]')
             shadow_button(driver, 'wa-panel[id="COMP7509"] > wa-button[id="COMP7511"]', 'button')
 
             print("Aguardando o fechamento das janelas de salvamento...")
-            wait = WebDriverWait(driver, 30)
+            wait = WebDriverWait(driver, 5)
             
-            wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, 'wa-panel[id="COMP7509"]')))
-            wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, 'wa-panel[id="COMP6550"]')))
+            wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, 'wa-panel[id="COMP7509"] > wa-button[id="COMP7511"]')))
 
             print(">>> SUCESSO: Produto salvo e janelas de confirmação fechadas.")
             return
@@ -527,9 +526,8 @@ def _salvar_e_confirmar_robusto(driver, max_tentativas=5):
             print(f"[AVISO] Falha na tentativa {tentativa}: {str(e).splitlines()[0]}")
             print("Tentando novamente...")
             try:
-                alert = driver.switch_to.alert
-                print(f"[ALERTA DETECTADO] Texto: {alert.text}. Aceitando alerta.")
-                alert.accept()
+                print("Clicando no botão 'Salvar'...")
+                shadow_button(driver, 'wa-panel[id="COMP6550"] > wa-button[id="COMP6554"]', 'button')
             except:
                 pass
             time.sleep(2)
