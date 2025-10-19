@@ -566,11 +566,29 @@ def inserir_produto(driver, produtos, it_prod):
         shadow_input(driver, seletor, produto_atual['DESCRICAO'])
         confirma_valor(driver, acessar_valor(elemento), produto_atual['DESCRICAO'], elemento, seletor)
         
-        # Descrição Específica
+        # --- Descrição Específica (com lógica de 80 caracteres) ---
+        print("\nIncluindo Descrição Específica...")
+        # Define o seletor uma vez para clareza
         seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]'
+        # Encontra o elemento na página
         elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
-        shadow_input(driver, seletor, produto_atual['DESCRICAO'])
-        confirma_valor(driver, acessar_valor(elemento), produto_atual['DESCRICAO'], elemento, seletor)
+        # Pega a descrição original do seu produto
+        descricao_original = produto_atual['DESCRICAO']
+        # Aplica a regra de negócio dos 80 caracteres
+        if len(descricao_original) <= 80:
+            # Se for menor ou igual a 80, usa a descrição completa
+            descricao_para_usar = descricao_original
+            print(f"-> Descrição tem {len(descricao_original)} caracteres (<= 80). Usando a descrição completa.")
+        else:
+            # Se for maior que 80, trunca para os primeiros 80 caracteres
+            descricao_para_usar = descricao_original[:80]
+            print(f"-> Descrição tem {len(descricao_original)} caracteres (> 80). Truncando para 80 caracteres.")
+            print(f"   - Original: '{descricao_original}'")
+            print(f"   - Truncada: '{descricao_para_usar}'")
+        # Usa a descrição (completa ou truncada) para preencher o campo
+        shadow_input(driver, seletor, descricao_para_usar)
+        # Usa a MESMA descrição (completa ou truncada) para a confirmação
+        confirma_valor(driver, acessar_valor(elemento), descricao_para_usar, elemento, seletor)
 
         # Tipo
         seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]'

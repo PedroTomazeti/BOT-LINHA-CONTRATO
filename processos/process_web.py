@@ -63,11 +63,11 @@ def shadow_input(driver, element, text):
     shadow = expand_shadow_element(driver, input)
     print("Shadow DOM expandido.")
     inserir = wait_for_click(shadow, By.CSS_SELECTOR, 'input')
-    sleep(1)
+    sleep(0.5)
 
     driver.execute_script("arguments[0].focus();", inserir)
     inserir.clear()
-    sleep(1)
+    sleep(0.5)
     inserir.send_keys(Keys.CONTROL, 'a')
     sleep(0.3)
     inserir.send_keys(Keys.BACKSPACE)
