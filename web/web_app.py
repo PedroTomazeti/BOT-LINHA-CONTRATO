@@ -17,6 +17,7 @@ from selenium.common.exceptions import (
     WebDriverException,
     ElementNotInteractableException,
     JavascriptException,
+    StaleElementReferenceException
 )
 from utils.Produtos import Produto
 from processos.process_web import (
@@ -462,167 +463,171 @@ def altera_tipo(driver):
 
     time.sleep(2)
 
+# ==============================================================================
+# FUNÇÃO AUXILIAR 1: CONFIRMAÇÃO DE VALOR
+# ==============================================================================
+def confirma_valor(driver, valor_atual, valor_desejado, wa_panel_element, seletor_input, max_tentativas=3):
+    """
+    Verifica se o valor de um campo foi alterado corretamente e tenta corrigi-lo se não foi.
+    Levanta um erro se não conseguir confirmar a alteração após várias tentativas.
+    """
+    # Normaliza os valores para uma comparação segura, tratando strings e maiúsculas
+    valor_atual = str(valor_atual).strip().upper()
+    valor_desejado = str(valor_desejado).strip().upper()
+
+    if valor_atual == valor_desejado:
+        print(f"-> Valor '{valor_desejado}' confirmado com sucesso.")
+        return
+
+    # Se o valor não estiver correto, inicia as tentativas de correção
+    for tentativa in range(1, max_tentativas + 1):
+        print(f"[AVISO] Valor incorreto detectado. Tentativa {tentativa}/{max_tentativas} para corrigir...")
+        print(f"  - Esperado: '{valor_desejado}'")
+        print(f"  - Encontrado: '{valor_atual}'")
+        
+        shadow_input(driver, seletor_input, valor_desejado) # Tenta inserir o valor novamente
+        time.sleep(0.5)
+        
+        valor_atual = str(acessar_valor(wa_panel_element)).strip().upper()
+        
+        if valor_atual == valor_desejado:
+            print(f"-> Correção bem-sucedida. Valor '{valor_desejado}' confirmado.")
+            return
+
+    raise Exception(f"ERRO CRÍTICO: Não foi possível definir o valor do campo para '{valor_desejado}'.")
+
+# ==============================================================================
+# FUNÇÃO AUXILIAR 2: SALVAMENTO ROBUSTO
+# ==============================================================================
+def _salvar_e_confirmar_robusto(driver, max_tentativas=5):
+    """
+    Tenta salvar e confirmar o produto de forma agressiva em um loop.
+    Só para quando os painéis de salvar e de confirmar desaparecerem.
+    """
+    for tentativa in range(1, max_tentativas + 1):
+        print(f"\n--- Tentativa {tentativa}/{max_tentativas} para Salvar e Confirmar ---")
+        try:
+            print("Clicando no botão 'Salvar'...")
+            shadow_button(driver, 'wa-panel[id="COMP6550"] > wa-button[id="COMP6554"]', 'button')
+
+            print("Clicando no botão 'Confirmar' final...")
+            wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP7509"]')
+            shadow_button(driver, 'wa-panel[id="COMP7509"] > wa-button[id="COMP7511"]', 'button')
+
+            print("Aguardando o fechamento das janelas de salvamento...")
+            wait = WebDriverWait(driver, 30)
+            
+            wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, 'wa-panel[id="COMP7509"]')))
+            wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, 'wa-panel[id="COMP6550"]')))
+
+            print(">>> SUCESSO: Produto salvo e janelas de confirmação fechadas.")
+            return
+
+        except (TimeoutException, StaleElementReferenceException) as e:
+            print(f"[AVISO] Falha na tentativa {tentativa}: {str(e).splitlines()[0]}")
+            print("Tentando novamente...")
+            try:
+                alert = driver.switch_to.alert
+                print(f"[ALERTA DETECTADO] Texto: {alert.text}. Aceitando alerta.")
+                alert.accept()
+            except:
+                pass
+            time.sleep(2)
+            
+    raise Exception("ERRO CRÍTICO: Não foi possível confirmar o salvamento do produto após múltiplas tentativas.")
+
+# ==============================================================================
+# FUNÇÃO PRINCIPAL: INSERIR PRODUTO (COMPLETA)
+# ==============================================================================
 def inserir_produto(driver, produtos, it_prod):
-    idx = it_prod.obter_valor("ultimo_idx")
-    list_tam = len(produtos)
+    """
+    Função principal de inserção, agora usando as funções auxiliares para robustez e clareza.
+    """
+    idx_inicial = it_prod.obter_valor("ultimo_idx")
+    total_produtos = len(produtos)
+    
+    print(f"Iniciando inserção em lote. Produtos restantes: {total_produtos - idx_inicial}")
 
-    restantes = list_tam - idx
+    for idx in range(idx_inicial, total_produtos):
+        produto_atual = produtos[idx]
+        print(f"\n--- Processando produto {idx + 1}/{total_produtos} (Grupo: {produto_atual['GRUPO']}) ---")
 
-    for i in range(restantes):
-        idx = it_prod.obter_valor("ultimo_idx")
         wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"]')
         
-        print("\nIncluindo Grupo...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]', produtos[idx]['GRUPO'])
-        print("Incluído.")
+        # --- Preenchimento e Confirmação de cada campo ---
+
+        # Grupo
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['GRUPO'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['GRUPO'], elemento, seletor)
+
+        # Descrição
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['DESCRICAO'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['DESCRICAO'], elemento, seletor)
         
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
+        # Descrição Específica
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['DESCRICAO'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['DESCRICAO'], elemento, seletor)
+
+        # Tipo
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['TIPO'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['TIPO'], elemento, seletor)
         
-        valor_desejado = str(produtos[idx]['GRUPO']).strip()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6030"]')
+        # Unidade
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['UNIDADE'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['UNIDADE'], elemento, seletor)
         
-        print("\nIncluindo Descrição...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]', produtos[idx]['DESCRICAO'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
+        # Armazém
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['ARMAZEM'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['ARMAZEM'], elemento, seletor)
         
-        valor_desejado = str(produtos[idx]['DESCRICAO']).strip().upper()
+        # NCM
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, str(produto_atual['NCM'])) # Você mencionou uma multiplicação por 8, ajuste se necessário
+        confirma_valor(driver, acessar_valor(elemento), str(produto_atual['NCM']).replace(".", ""), elemento, seletor)
 
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6032"]')
+        # Preço de Venda (usando a função específica para quantidade)
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6041"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input_quant(driver, seletor, produto_atual['PRECO VENDA'])
+        valor_atual_formatado = f"{float(acessar_valor(elemento)):.2f}".replace(".", ",")
+        confirma_valor_quant(driver, valor_atual_formatado, produto_atual['PRECO VENDA'], elemento, seletor)
 
-        print("\nIncluindo Descrição Específica...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]', produtos[idx]['DESCRICAO'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
+        # Código do Fornecedor
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6046"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['COD FOR'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['COD FOR'], elemento, seletor)
         
-        valor_desejado = str(produtos[idx]['DESCRICAO']).strip().upper()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6033"]')
+        # Código do Fornecedor CLI
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6063"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['COD PRO CLI'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['COD PRO CLI'], elemento, seletor)
         
-        print("\nIncluindo Tipo...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]', produtos[idx]['TIPO'])
-        print("Incluído.")
+        # Unidade de Medida CLI
+        seletor = 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6064"]'
+        elemento = wait_for_element(driver, By.CSS_SELECTOR, seletor)
+        shadow_input(driver, seletor, produto_atual['UNIDADE.1'])
+        confirma_valor(driver, acessar_valor(elemento), produto_atual['UNIDADE.1'], elemento, seletor)
 
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
-        
-        valor_desejado = str(produtos[idx]['TIPO']).strip().upper()
+        # --- LÓGICA DE SALVAMENTO ---
+        _salvar_e_confirmar_robusto(driver)
 
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6034"]')
-
-        print("\nIncluindo Unidade...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]', produtos[idx]['UNIDADE'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
-        
-        valor_desejado = str(produtos[idx]['UNIDADE']).strip().upper()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6035"]')
-
-        print("\nIncluindo Armazem...")    
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]', produtos[idx]['ARMAZEM'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
-        
-        valor_desejado = str(produtos[idx]['ARMAZEM']).strip()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6036"]')
-
-        print("\nIncluindo NCM...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]', str(produtos[idx]['NCM']) * 8)
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
-        
-        valor_desejado = str(produtos[idx]['NCM']).replace(".", "").strip()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6037"]')
-
-        print("\nIncluindo Preço de venda...")
-        print(f"Preço: R$ {produtos[idx]['PRECO VENDA']}")
-        
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6041"]')
-        shadow_input_quant(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6041"]', produtos[idx]['PRECO VENDA'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel)
-        print(f"Valor atual do campo: {valor_atual}")
-
-        # Converter 'valor_atual' para float, depois formatá-lo com duas casas decimais e vírgula
-        valor_atual_formatado = f"{float(valor_atual):.2f}".replace(".", ",")
-
-        print(f"Valor atual formatado: {valor_atual}")
-
-        confirma_valor_quant(driver, valor_atual_formatado, produtos[idx]['PRECO VENDA'], wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6041"]')
-
-        print("\nIncluindo Código do fornecedor...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6046"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6046"]', produtos[idx]['COD FOR'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
-        
-        valor_desejado = str(produtos[idx]['COD FOR']).strip()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6046"]')
-
-        print("\nIncluindo Código do fornecedor CLI...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6063"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6063"]', produtos[idx]['COD PRO CLI'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
-        
-        valor_desejado = str(produtos[idx]['COD PRO CLI']).strip()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6063"]')
-
-        print("\nIncluindo Unidade de medida CLI...")
-        wa_panel = wait_for_element(driver, By.CSS_SELECTOR, 'wa-text-input[id="COMP6064"]')
-        shadow_input(driver, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6064"]', produtos[idx]['UNIDADE.1'])
-        print("Incluído.")
-
-        valor_atual = acessar_valor(wa_panel).strip()  # Remove espaços extras
-        print(f"Valor atual do campo: {valor_atual}")
-        
-        valor_desejado = str(produtos[idx]['UNIDADE.1']).strip()
-
-        confirma_valor(driver, valor_atual, valor_desejado, wa_panel, 'wa-panel[id="COMP6029"] > wa-text-input[id="COMP6064"]')
-
-        time.sleep(3)
-
-        print("\nSalvando produto...")
-        wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6550"] > wa-button[id="COMP6554"]')
-        shadow_button(driver, 'wa-panel[id="COMP6550"] > wa-button[id="COMP6554"]', 'button')
-        print("Salvo.")
-
-        print("\nConfirmando.")
-        wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP7509"] > wa-button[id="COMP7511"]')
-        shadow_button(driver, 'wa-panel[id="COMP7509"] > wa-button[id="COMP7511"]', 'button')
-        print("Confirmado.")
-        
-        it_prod.atualizar_valor("ultimo_idx", idx+1)
-        time.sleep(5)
+        # Atualiza o índice para o próximo produto
+        it_prod.atualizar_valor("ultimo_idx", idx + 1)
 
     print("\nFechando menu...")
     wait_for_element(driver, By.CSS_SELECTOR, 'wa-panel[id="COMP6550"] > wa-button[id="COMP6553"]')
